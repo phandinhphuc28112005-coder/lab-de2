@@ -24,7 +24,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg-color); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
 
-        /* --- SIDEBAR PANEL (Bên trái) --- */
+        /* --- SIDEBAR PANEL --- */
         aside {
             width: var(--sidebar-width);
             background: var(--card-bg);
@@ -70,7 +70,6 @@
         .menu-btn:hover { background-color: #f1f5f9; color: var(--accent-color); }
         .menu-btn.active { background-color: var(--accent-color); color: white; }
 
-        /* Vùng điều khiển trong sidebar */
         .sidebar-controls {
             padding: 15px;
             flex-grow: 1;
@@ -97,7 +96,7 @@
         .status-on { color: #10b981; font-weight: bold; }
         .status-off { color: #ef4444; font-weight: bold; }
 
-        /* --- MAIN CONTENT (Bên phải) --- */
+        /* --- MAIN CONTENT --- */
         main {
             flex-grow: 1;
             height: 100%;
@@ -111,7 +110,6 @@
         .tab-content { display: none; flex-direction: column; gap: 20px; height: 100%; }
         .tab-content.active { display: flex; }
 
-        /* Thẻ cảm biến lớn cấp cao */
         .sensor-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -138,7 +136,6 @@
         .sensor-info h3 { font-size: 13px; color: #64748b; margin-bottom: 4px; }
         .sensor-info h2 { font-size: 24px; color: var(--primary-color); }
 
-        /* Khung chứa Biểu đồ */
         .charts-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -158,7 +155,6 @@
         .chart-box h3 { font-size: 14px; margin-bottom: 10px; color: var(--primary-color); display: flex; align-items: center; gap: 8px; }
         .chart-container-inner { position: relative; flex-grow: 1; width: 100%; height: 220px; }
 
-        /* Lịch sử bảng Section */
         .history-card {
             background: var(--card-bg);
             padding: 20px;
@@ -181,7 +177,6 @@
         th { background-color: #f1f5f9; color: var(--primary-color); position: sticky; top: 0; z-index: 10; }
         tr:nth-child(even) { background-color: #f8fafc; }
 
-        /* Responsive cho Mobile: Chuyển Sidebar thành Top bar dạng trượt gọn gàng */
         @media (max-width: 768px) {
             body { flex-direction: column; overflow: auto; height: auto; }
             aside { width: 100%; height: auto; }
@@ -192,7 +187,6 @@
 </head>
 <body>
 
-    <!-- SIDEBAR PANEL -->
     <aside>
         <div class="sidebar-header">
             <h1><i class="fa-solid fa-seedling"></i> Giám Sát Vườn Cây</h1>
@@ -239,9 +233,7 @@
         </div>
     </aside>
 
-    <!-- MAIN CONTENT PANEL -->
     <main>
-        <!-- TAB 1: GIÁM SÁT -->
         <div id="monitor-tab" class="tab-content active">
             <div class="sensor-grid">
                 <div class="sensor-card">
@@ -280,7 +272,6 @@
             </div>
         </div>
 
-        <!-- TAB 2: LỊCH SỬ -->
         <div id="history-tab" class="tab-content">
             <div class="history-card">
                 <div class="history-header">
@@ -302,9 +293,7 @@
                                 <th>Chế độ</th>
                             </tr>
                         </thead>
-                        <tbody id="history-table-body">
-                            <!-- Nạp tự động từ JS -->
-                        </tbody>
+                        <tbody id="history-table-body"></tbody>
                     </table>
                 </div>
             </div>
@@ -312,7 +301,6 @@
     </main>
 
     <script>
-        // --- CHUYỂN TAB ---
         function switchTab(tabName, btnElement) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.menu-btn').forEach(el => el.classList.remove('active'));
@@ -326,18 +314,22 @@
             btnElement.classList.add('active');
         }
 
-        // --- MQTT CONFIG ---
-        const client = new Paho.MQTT.Client("broker.hivemq.com", Number(8000), "web_client_231432318_" + parseInt(Math.random()*100000));
+        // --- ĐÃ SỬA: Dùng cổng 8884 và thêm cờ useSSL: true cho kết nối WSS bảo mật ---
+        const client = new Paho.MQTT.Client("broker.hivemq.com", Number(8884), "web_client_231432318_" + parseInt(Math.random()*100000));
         
         const topicSensor = "utc/iot/lab2/231432318/sensor";
         const topicCmd = "utc/iot/lab2/231432318/cmd";
 
         client.onConnectionLost = onConnectionLost;
         client.onMessageArrived = onMessageArrived;
-        client.connect({ onSuccess: onConnect });
+        
+        client.connect({ 
+            onSuccess: onConnect,
+            useSSL: true // Khắc phục lỗi Mixed Content qua HTTPS
+        });
 
         function onConnect() {
-            console.log("Đã kết nối thành công tới MQTT Broker!");
+            console.log("Đã kết nối thành công tới MQTT Broker qua WSS!");
             client.subscribe(topicSensor);
         }
 
@@ -374,8 +366,6 @@
             document.getElementById("mode-status").innerText = data.mode;
 
             updateCharts(data.temp, data.hum);
-
-            // --- LƯU VÀO LOCALSTORAGE ---
             saveToLocalStorage(data);
         }
 
@@ -386,7 +376,6 @@
             console.log("Đã gửi lệnh: " + cmd);
         }
 
-        // --- XỬ LÝ BIỂU ĐỒ ---
         const ctxTemp = document.getElementById('tempChart').getContext('2d');
         const tempChart = new Chart(ctxTemp, {
             type: 'line',
@@ -441,7 +430,6 @@
             humChart.update();
         }
 
-        // --- QUẢN LÝ LOCALSTORAGE & LỊCH SỬ ---
         const STORAGE_KEY = "iot_history_231432318";
 
         function saveToLocalStorage(data) {
